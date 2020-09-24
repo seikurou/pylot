@@ -50,7 +50,7 @@ def driver():
                                       pylot.utils.Rotation(pitch=-15))
     streams_to_send_top_on = []
     control_loop_stream = erdos.LoopStream()
-    time_to_decision_loop_stream = erdos.LoopStream()
+    # time_to_decision_loop_stream = erdos.LoopStream()
     if FLAGS.carla_mode == 'pseudo-asynchronous':
         release_sensor_stream = erdos.LoopStream()
         pipeline_finish_notify_stream = erdos.LoopStream()
@@ -76,7 +76,9 @@ def driver():
         pipeline_finish_notify_stream,
     )
 
+    ######################
     # Add sensors.
+    ######################
     (center_camera_stream, notify_rgb_stream,
      center_camera_setup) = pylot.operator_creator.add_rgb_camera(
          transform, vehicle_id_stream, release_sensor_stream)
@@ -133,101 +135,140 @@ def driver():
         pose_stream = pylot.operator_creator.add_localization(
             imu_stream, gnss_stream, pose_stream)
 
-    obstacles_stream, perfect_obstacles_stream = \
-        pylot.component_creator.add_obstacle_detection(
-            center_camera_stream, center_camera_setup, pose_stream,
-            depth_stream, depth_camera_stream, ground_segmented_stream,
-            ground_obstacles_stream, ground_speed_limit_signs_stream,
-            ground_stop_signs_stream, time_to_decision_loop_stream)
-    tl_transform = pylot.utils.Transform(CENTER_CAMERA_LOCATION,
-                                         pylot.utils.Rotation())
-    traffic_lights_stream, tl_camera_stream = \
-        pylot.component_creator.add_traffic_light_detection(
-            tl_transform, vehicle_id_stream, release_sensor_stream,
-            pose_stream, depth_stream, ground_traffic_lights_stream)
+    ######################
+    # Add detection.
+    ######################
 
-    lane_detection_stream = pylot.component_creator.add_lane_detection(
-        center_camera_stream, pose_stream, open_drive_stream)
-    if lane_detection_stream is None:
-        lane_detection_stream = erdos.IngestStream()
-        streams_to_send_top_on.append(lane_detection_stream)
+    # obstacles_stream, perfect_obstacles_stream = \
+    #     pylot.component_creator.add_obstacle_detection(
+    #         center_camera_stream, center_camera_setup, pose_stream,
+    #         depth_stream, depth_camera_stream, ground_segmented_stream,
+    #         ground_obstacles_stream, ground_speed_limit_signs_stream,
+    #         ground_stop_signs_stream, time_to_decision_loop_stream)
+    # tl_transform = pylot.utils.Transform(CENTER_CAMERA_LOCATION,
+    #                                      pylot.utils.Rotation())
+    # traffic_lights_stream, tl_camera_stream = \
+    #     pylot.component_creator.add_traffic_light_detection(
+    #         tl_transform, vehicle_id_stream, release_sensor_stream,
+    #         pose_stream, depth_stream, ground_traffic_lights_stream)
+    #
+    # lane_detection_stream = pylot.component_creator.add_lane_detection(
+    #     center_camera_stream, pose_stream, open_drive_stream)
+    # if lane_detection_stream is None:
+    #     lane_detection_stream = erdos.IngestStream()
+    #     streams_to_send_top_on.append(lane_detection_stream)
+    #
+    # obstacles_tracking_stream = pylot.component_creator.add_obstacle_tracking(
+    #     center_camera_stream, center_camera_setup, obstacles_stream,
+    #     depth_stream, vehicle_id_stream, pose_stream, ground_obstacles_stream,
+    #     time_to_decision_loop_stream)
+    #
+    # segmented_stream = pylot.component_creator.add_segmentation(
+    #     center_camera_stream, ground_segmented_stream)
+    #
+    # depth_stream = pylot.component_creator.add_depth(transform,
+    #                                                  vehicle_id_stream,
+    #                                                  center_camera_setup,
+    #                                                  depth_camera_stream)
 
-    obstacles_tracking_stream = pylot.component_creator.add_obstacle_tracking(
-        center_camera_stream, center_camera_setup, obstacles_stream,
-        depth_stream, vehicle_id_stream, pose_stream, ground_obstacles_stream,
-        time_to_decision_loop_stream)
+    ######################
+    # Add prediction?.
+    ######################
 
-    segmented_stream = pylot.component_creator.add_segmentation(
-        center_camera_stream, ground_segmented_stream)
+    # if FLAGS.fusion:
+    #     pylot.operator_creator.add_fusion(pose_stream, obstacles_stream,
+    #                                       depth_stream,
+    #                                       ground_obstacles_stream)
+    #
+    # prediction_stream, prediction_camera_stream, notify_prediction_stream = \
+    #     pylot.component_creator.add_prediction(
+    #         obstacles_tracking_stream, vehicle_id_stream, transform,
+    #         release_sensor_stream, pose_stream, point_cloud_stream,
+    #         lidar_setup)
+    # if prediction_stream is None:
+    #     prediction_stream = obstacles_stream
+    # if notify_prediction_stream:
+    #     notify_streams.append(notify_prediction_stream)
 
-    depth_stream = pylot.component_creator.add_depth(transform,
-                                                     vehicle_id_stream,
-                                                     center_camera_setup,
-                                                     depth_camera_stream)
+    ######################
+    # Add planning?.
+    ######################
 
-    if FLAGS.fusion:
-        pylot.operator_creator.add_fusion(pose_stream, obstacles_stream,
-                                          depth_stream,
-                                          ground_obstacles_stream)
+    # goal_location = pylot.utils.Location(float(FLAGS.goal_location[0]),
+    #                                      float(FLAGS.goal_location[1]),
+    #                                      float(FLAGS.goal_location[2]))
+    # waypoints_stream = pylot.component_creator.add_planning(
+    #     goal_location, pose_stream, prediction_stream, traffic_lights_stream,
+    #     lane_detection_stream, open_drive_stream, global_trajectory_stream,
+    #     time_to_decision_loop_stream)
+    #
+    # if FLAGS.carla_mode == "pseudo-asynchronous":
+    #     # Add a synchronizer in the pseudo-asynchronous mode.
+    #     (
+    #         waypoints_stream_for_control,
+    #         pose_stream_for_control,
+    #         sensor_ready_stream,
+    #         _pipeline_finish_notify_stream,
+    #     ) = pylot.operator_creator.add_planning_pose_synchronizer(
+    #         waypoints_stream, pose_stream_for_control, pose_stream,
+    #         *notify_streams)
+    #     release_sensor_stream.set(sensor_ready_stream)
+    #     pipeline_finish_notify_stream.set(_pipeline_finish_notify_stream)
+    # else:
+    #     waypoints_stream_for_control = waypoints_stream
+    #     pose_stream_for_control = pose_stream
 
-    prediction_stream, prediction_camera_stream, notify_prediction_stream = \
-        pylot.component_creator.add_prediction(
-            obstacles_tracking_stream, vehicle_id_stream, transform,
-            release_sensor_stream, pose_stream, point_cloud_stream,
-            lidar_setup)
-    if prediction_stream is None:
-        prediction_stream = obstacles_stream
-    if notify_prediction_stream:
-        notify_streams.append(notify_prediction_stream)
+    ######################
+    # Add control.
+    ######################
 
-    goal_location = pylot.utils.Location(float(FLAGS.goal_location[0]),
-                                         float(FLAGS.goal_location[1]),
-                                         float(FLAGS.goal_location[2]))
-    waypoints_stream = pylot.component_creator.add_planning(
-        goal_location, pose_stream, prediction_stream, traffic_lights_stream,
-        lane_detection_stream, open_drive_stream, global_trajectory_stream,
-        time_to_decision_loop_stream)
+    # control_stream = pylot.component_creator.add_control(
+    #     pose_stream_for_control, waypoints_stream_for_control,
+    #     vehicle_id_stream, perfect_obstacles_stream)
 
-    if FLAGS.carla_mode == "pseudo-asynchronous":
-        # Add a synchronizer in the pseudo-asynchronous mode.
-        (
-            waypoints_stream_for_control,
-            pose_stream_for_control,
-            sensor_ready_stream,
-            _pipeline_finish_notify_stream,
-        ) = pylot.operator_creator.add_planning_pose_synchronizer(
-            waypoints_stream, pose_stream_for_control, pose_stream,
-            *notify_streams)
-        release_sensor_stream.set(sensor_ready_stream)
-        pipeline_finish_notify_stream.set(_pipeline_finish_notify_stream)
-    else:
-        waypoints_stream_for_control = waypoints_stream
-        pose_stream_for_control = pose_stream
-
-    control_stream = pylot.component_creator.add_control(
-        pose_stream_for_control, waypoints_stream_for_control,
-        vehicle_id_stream, perfect_obstacles_stream)
+    from test_operator import TestOperator
+    op_config = erdos.OperatorConfig(name='test_operator',
+                                     flow_watermarks=False,
+                                     log_file_name=FLAGS.log_file_name,
+                                     csv_log_file_name=FLAGS.csv_log_file_name,
+                                     profile_file_name=FLAGS.profile_file_name)
+    [control_stream] = erdos.connect(TestOperator, op_config, [center_camera_stream], FLAGS)
     control_loop_stream.set(control_stream)
 
-    add_evaluation_operators(vehicle_id_stream, pose_stream, imu_stream,
-                             pose_stream_for_control,
-                             waypoints_stream_for_control)
+    # add_evaluation_operators(vehicle_id_stream, pose_stream, imu_stream,
+    #                          pose_stream_for_control,
+    #                          waypoints_stream_for_control)
 
-    time_to_decision_stream = pylot.operator_creator.add_time_to_decision(
-        pose_stream, obstacles_stream)
-    time_to_decision_loop_stream.set(time_to_decision_stream)
+    ######################
+    # Add ?.
+    ######################
+    # time_to_decision_stream = pylot.operator_creator.add_time_to_decision(
+    #     pose_stream, obstacles_stream)
+    # time_to_decision_loop_stream.set(time_to_decision_stream)
 
     control_display_stream = None
+    ###########################################################################
+    # if pylot.flags.must_visualize():
+    #     control_display_stream, ingest_streams = \
+    #         pylot.operator_creator.add_visualizer(
+    #             pose_stream, center_camera_stream, tl_camera_stream,
+    #             prediction_camera_stream, depth_camera_stream,
+    #             point_cloud_stream, segmented_stream, imu_stream,
+    #             obstacles_stream, traffic_lights_stream,
+    #             obstacles_tracking_stream, lane_detection_stream,
+    #             prediction_stream, waypoints_stream, control_stream)
+    #     streams_to_send_top_on += ingest_streams
     if pylot.flags.must_visualize():
         control_display_stream, ingest_streams = \
             pylot.operator_creator.add_visualizer(
-                pose_stream, center_camera_stream, tl_camera_stream,
-                prediction_camera_stream, depth_camera_stream,
-                point_cloud_stream, segmented_stream, imu_stream,
-                obstacles_stream, traffic_lights_stream,
-                obstacles_tracking_stream, lane_detection_stream,
-                prediction_stream, waypoints_stream, control_stream)
+                pose_stream, center_camera_stream, None,
+                None, depth_camera_stream,
+                point_cloud_stream, None, imu_stream,
+                None, None,
+                None, None,
+                None, None, None)
         streams_to_send_top_on += ingest_streams
+    ############################################################################
 
     node_handle = erdos.run_async()
 
@@ -266,6 +307,7 @@ def main(args):
     try:
         if FLAGS.simulation_recording_file is not None:
             client.start_recorder(FLAGS.simulation_recording_file)
+        # import pdb;pdb.set_trace()
         node_handle, control_display_stream = driver()
         signal.signal(signal.SIGINT, shutdown)
         if pylot.flags.must_visualize():
